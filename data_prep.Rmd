@@ -1,0 +1,71 @@
+---
+title: "Data Prep"
+author: "Sarah Gonyo"
+date: "2023-03-23"
+output: html_document
+---
+
+```{r, include=FALSE}
+
+library(dplyr)
+library(tidyverse)
+library(texreg) #Regression tables
+library(knitr)
+library(haven)
+
+############################
+# Set up project structure #
+############################
+
+dir.create("./report")
+dir.create("./output")
+dir.create("./output/fig")
+dir.create("./output/tab")
+dir.create("./documentation")
+dir.create("./data")
+dir.create("./data/raw")
+dir.create("./data/processed")
+dir.create("./scripts")
+
+###############
+# Import data #
+###############
+
+data <- read_dta("./data/raw/ZA7500_v5-0-0.dta")
+
+################
+# Prepare data #
+################
+
+data_subset <- data %>%
+  subset(select = c(c_abrv, age,  v225, v243_r, v72, v80)) %>% #select variables of interest
+  rename(country = c_abrv, male = v225, education = v243_r, child_suffer = v72, job_priority = v80) %>% #rename variables
+  mutate(across(c(age, male, education, child_suffer, job_priority), ~ifelse(.x<0,NA,.x))) %>% #set negative values to missing
+  mutate(education = replace(education, education == 66, NA)) %>% #replace other education with missing
+  mutate(male = replace(male, male == 2, 0)) %>%  #make sex binary (male = 1)
+  mutate(child_suffer = 5 - child_suffer) %>% #reverse code (disagree -> agree)
+  mutate(job_priority = 6 - job_priority)#reverse code (disagree -> agree)
+#Reverse code dependent variables
+
+#Remove missing values
+data_subset <- na.omit(data_subset)
+
+#Create labels
+data_subset$male <-
+  factor(data_subset$male, labels = c("Female", "Male"))
+
+data_subset$education <-
+  factor(data_subset$education, labels = c("Low", "Medium", "High"))
+
+#Create country list
+country <- unique(data_subset$country)
+country <- append(country, "Overall", after = 0)
+
+#############
+# Save data #
+#############
+
+write_rds(data_subset, file = "./data/processed/data_subset.rds")
+```
+
+```
